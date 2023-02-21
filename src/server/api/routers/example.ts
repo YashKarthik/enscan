@@ -1,13 +1,16 @@
-import { z } from "zod";
-
+import { getENSRegistryEvents } from "../../../utils/update-ens";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { JsonRpcProvider } from "ethers";
+import { env } from "~/env.mjs";
+
+const provider = new JsonRpcProvider(env.MAINNET_RPC_URL);
 
 export const exampleRouter = createTRPCRouter({
   hello: publicProcedure
-    .input(z.object({ text: z.string() }))
-    .query(({ input }) => {
+    .query(async () => {
+      await getENSRegistryEvents(provider, 16677100);
       return {
-        greeting: `Hello ${input.text}`,
+        data: "yes"
       };
     }),
 });

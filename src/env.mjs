@@ -6,7 +6,7 @@ import { z } from "zod";
  */
 const server = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
-  INFURA_API_KEY: z.string().url(),
+  MAINNET_RPC_URL: z.string().url(),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string(),
 });
@@ -27,7 +27,7 @@ const client = z.object({
  */
 const processEnv = {
   NODE_ENV: process.env.NODE_ENV,
-  INFURA_API_KEY: process.env.INFURA_API_KEY,
+  MAINNET_RPC_URL: process.env.MAINNET_RPC_URL,
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
 };
