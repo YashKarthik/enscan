@@ -11,3 +11,6 @@ filtering.
 time as Alchemy allows only 2K blocks per query (for unlimited logs).
 - So create another table in supabase that stores the last blocknumber that was indexed.
 - When cronjob starts, we check this number and start from there.
+
+
+- Also, consider using Github Actions for cron instead of supabase (better syntax).

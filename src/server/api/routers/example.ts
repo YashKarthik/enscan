@@ -1,9 +1,9 @@
 import { getENSRegistryEvents } from "../../../utils/update-ens";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { JsonRpcProvider } from "ethers";
+import { AlchemyProvider, JsonRpcProvider } from "ethers";
 import { env } from "~/env.mjs";
 
-const provider = new JsonRpcProvider(env.MAINNET_RPC_URL);
+const provider = new AlchemyProvider("mainnet", env.ALCHEMY_API_KEY);
 
 export const exampleRouter = createTRPCRouter({
   hello: publicProcedure
