@@ -8,7 +8,7 @@ const provider = new AlchemyProvider("mainnet", env.ALCHEMY_API_KEY);
 export const exampleRouter = createTRPCRouter({
   hello: publicProcedure
     .query(async () => {
-      const events = await getENSRegistryEvents(provider, 16695658);
+      const events = await getENSRegistryEvents(provider, 16703428);
       extractDataFromEvent(provider, events[0]!);
 
       return {

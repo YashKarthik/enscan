@@ -1,5 +1,6 @@
-import { Provider, Contract, ethers, EnsResolver } from 'ethers'
-import { EnsRegistryAbi } from '~/abis/EnsRegistry';
+import { Provider, Contract, ethers, EnsResolver, VoidSigner } from 'ethers'
+import { EnsRegistryAbi } from '../abis/EnsRegistry';
+import EnsRegistryWithFallbackAbi from "../abis/EnsRegistryWithFallback.json"
 
 /**
   * @param provider - a provider oboject of type ethers.AlchemyProvider
@@ -46,10 +47,21 @@ export async function getENSRegistryEvents(provider: Provider, startBlock: numbe
   return logs;
 }
 
+
+
 /**
   * Returns the data about ENS record extracted from the event log.
   */
-export function extractDataFromEvent(provider: Provider, eventLog: ethers.Log) {
-  const node = eventLog.topics[1] as string; // second topic is the bytes32 indexed node
-  console.log(ethers.resolveAddress(node));
+export async function extractDataFromEvent(provider: Provider, eventLog: ethers.Log) {
+  const namehash = eventLog.topics[1] as string; // second topic is the bytes32 indexed node
+
+  const contract = new Contract(
+    "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+    EnsRegistryWithFallbackAbi as ethers.InterfaceAbi,
+    provider
+  );
+
+  // @ts-expect-error
+  const resolver = new ethers.EnsResolver(await contract.resolver(namehash));
+  console.log(resolver.address);
 }
