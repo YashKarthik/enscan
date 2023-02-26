@@ -1,6 +1,7 @@
-import { ethers, Provider, Contract, EnsResolver } from 'ethers'
+import { ethers, AlchemyProvider, Contract, EnsResolver } from 'ethers'
 import type { IProfile } from '../types/types';
 import ETHRegistrarControllerAbi from "../abis/ETHRegistrarController.json";
+import { TRPCError } from '@trpc/server';
 
 /**
   * @param provider - a provider oboject of type ethers.AlchemyProvider
@@ -12,7 +13,7 @@ import ETHRegistrarControllerAbi from "../abis/ETHRegistrarController.json";
   * emitted by the `ETHRegistrarController` contract.
   */
 
-export async function getNameRegisteredEvent(provider: Provider, startBlock: number, endBlock?: number) {
+export async function getNameRegisteredEvent(provider: AlchemyProvider, startBlock: number, endBlock?: number) {
   console.log(`\n----------------Starting to index from block ${startBlock}----------------\n`);
 
   const currentBlock = await provider.getBlockNumber();
@@ -50,18 +51,47 @@ export async function getNameRegisteredEvent(provider: Provider, startBlock: num
   * @returns IProfile
   * Returns the data about ENS record extracted from the event log.
   */
-export async function extractDataFromEvent(provider: Provider, eventLog: ethers.Log) {
+export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: ethers.Log) {
   const ETHRegistrarController = new Contract(
     "0x283af0b28c62c092c9727f1ee09c02ca627eb7f5",
     ETHRegistrarControllerAbi,
     provider
   );
-
-  const mutableTopics = Array.from(eventLog.topics); // convert topics to a mutable array
-  // Eg: if alice.eth registered => `ensName` would be equal to alice.
+  const mutableTopics = Array.from(eventLog.topics); // parseLog needs mutable array.
   const ensName = ETHRegistrarController.interface.parseLog({topics: mutableTopics, data: eventLog.data})?.args[0] as string;
+  const resolver = await provider.getResolver(ensName + ".eth");
+
+  if (!resolver || resolver.address == ethers.ZeroAddress) throw new TRPCError({
+    message: "Resolver not found",
+    code: "NOT_FOUND",
+    cause: "ENS name may not be registered, or resolver not set."
+  });
 
   return {
     ensName,
+
+    // figure these out
+    resolver: resolver.address,
+    registrant: "",
+    controller: "",
+    expirationDate: new Date(),
+    tokenId: "",
+
+    contentHash: await resolver.getContentHash(),
+    bitcoin: await resolver.getAddress(0),
+    dogecoin: await resolver.getAddress(3),
+    email: await resolver.getText("email"),
+    url: await resolver.getText("url"),
+    avatar: await resolver.getText("avatar"),
+    description: await resolver.getText("description"),
+    notice: await resolver.getText("notice"),
+    keywords: await resolver.getText("keywords"),
+    discord: await resolver.getText("com.discord"),
+    github: await resolver.getText("com.github"),
+    reddit: await resolver.getText("com.reddit"),
+    twitter: await resolver.getText("com.twitter"),
+    telegram: await resolver.getText("org.telegram"),
+    linkedIn: await resolver.getText("com.linkedin"),
+    ensDelegate: await resolver.getText("eth.ens.delegate"),
   }
 }

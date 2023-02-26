@@ -1,6 +1,6 @@
 import { extractDataFromEvent, getNameRegisteredEvent } from "../../../utils/update-ens";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { ethers, AlchemyProvider, JsonRpcProvider, Provider } from "ethers";
+import { AlchemyProvider } from "ethers";
 import { env } from "~/env.mjs";
 import { z } from "zod";
 
@@ -11,8 +11,8 @@ export const exampleRouter = createTRPCRouter({
     .input(z.string().url())
     .query(async () => {
 
-      const events = await getNameRegisteredEvent(provider, 16705729);
-      extractDataFromEvent(provider, events[0]!);
+      const events = await getNameRegisteredEvent(provider, 16711729);
+      await extractDataFromEvent(provider, events[0]!);
 
       return {
         data: "yes"
