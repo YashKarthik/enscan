@@ -1,6 +1,7 @@
 import { ethers, AlchemyProvider, Contract, EnsResolver } from 'ethers'
 import type { IProfile } from '../types/types';
 import ETHRegistrarControllerAbi from "../abis/ETHRegistrarController.json";
+import BaseRegistrarAbi from "../abis/BaseRegistrar.json";
 import { TRPCError } from '@trpc/server';
 
 /**
@@ -57,6 +58,12 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
     ETHRegistrarControllerAbi,
     provider
   );
+  const BaseRegistrar = new Contract(
+    "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85",
+    BaseRegistrarAbi,
+    provider
+  );
+
   const mutableTopics = Array.from(eventLog.topics); // parseLog needs mutable array.
   const ensName = ETHRegistrarController.interface.parseLog({topics: mutableTopics, data: eventLog.data})?.args[0] as string;
   const resolver = await provider.getResolver(ensName + ".eth");
@@ -67,15 +74,26 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
     cause: "ENS name may not be registered, or resolver not set."
   });
 
+  const tokenId = ethers.getBigInt(
+    ethers.keccak256(
+      ethers.toUtf8Bytes(ensName)
+    )
+  ).toString()
+
+  const expiry = new Date(
+    Number(
+      // @ts-expect-error
+      (await BaseRegistrar.nameExpires(tokenId))
+      * 1000n
+    )
+  );
+
   return {
     ensName,
-
-    // figure these out
     resolver: resolver.address,
-    registrant: "",
-    controller: "",
-    expirationDate: new Date(),
-    tokenId: "",
+    registrant: await resolver.getAddress(),
+    expirationDate: expiry,
+    tokenId: tokenId,
 
     contentHash: await resolver.getContentHash(),
     bitcoin: await resolver.getAddress(0),

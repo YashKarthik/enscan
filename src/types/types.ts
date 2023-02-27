@@ -1,10 +1,16 @@
 import { z } from "zod"
 
+/** 
+  * Zod schema for each row in DB.
+  *
+  * Future improvements:
+  *  - Index `ControllerAdded`, `ControllerRemoved` to get the controller's address.
+  * */
+
 const Profile = z.object({
   ensName: z.string().endsWith(".eth"),
   resolver: z.string().length(40),
   registrant: z.string().length(40),
-  controller: z.string().length(40),
   expirationDate: z.date(),
   tokenId: z.string().length(77),
 
