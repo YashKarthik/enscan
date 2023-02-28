@@ -11,9 +11,8 @@ export const exampleRouter = createTRPCRouter({
     .input(z.string().url())
     .query(async () => {
 
-      const events = await getNameRegisteredEvent(provider, 16717729);
-      const t = await extractDataFromEvent(provider, events[0]!);
-      console.log(t);
+      const events = await getNameRegisteredEvent(provider, 16723729);
+      await extractDataFromEvent(provider, events[0]!);
 
       return {
         data: "yes"

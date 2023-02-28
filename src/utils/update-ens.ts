@@ -1,8 +1,10 @@
-import { ethers, AlchemyProvider, Contract, EnsResolver } from 'ethers'
+import { ethers, AlchemyProvider, Contract } from 'ethers'
 import type { IProfile } from '../types/types';
+import { Profile } from '../types/types';
 import ETHRegistrarControllerAbi from "../abis/ETHRegistrarController.json";
 import BaseRegistrarAbi from "../abis/BaseRegistrar.json";
 import { TRPCError } from '@trpc/server';
+import { isNull } from 'util';
 
 /**
   * @param provider - a provider oboject of type ethers.AlchemyProvider
@@ -21,7 +23,7 @@ export async function getNameRegisteredEvent(provider: AlchemyProvider, startBlo
   let logs: ethers.Log[] = [];
 
   const batchSize = 2000; // batch size for each parallel query
-  const batchCount = Math.ceil(((endBlock || currentBlock) - startBlock + 1) / batchSize);
+  const batchCount = Math.ceil(((endBlock ?? currentBlock) - startBlock + 1) / batchSize);
 
   const batchRequests = Array.from({ length: batchCount }, async (_, i) => {
     const fromBlock = startBlock + i * batchSize;
@@ -44,7 +46,7 @@ export async function getNameRegisteredEvent(provider: AlchemyProvider, startBlo
     a.blockNumber > b.blockNumber ? 1 : -1
   ));
 
-  console.log(`\n----------------Indexed upto block ${endBlock || currentBlock}----------------\n`);
+  console.log(`\n----------------Indexed upto block ${endBlock ?? currentBlock}----------------\n`);
   return logs;
 }
 
@@ -65,8 +67,9 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
   );
 
   const mutableTopics = Array.from(eventLog.topics); // parseLog needs mutable array.
-  const ensName = ETHRegistrarController.interface.parseLog({topics: mutableTopics, data: eventLog.data})?.args[0] as string;
-  const resolver = await provider.getResolver(ensName + ".eth");
+  //const ensName = ETHRegistrarController.interface.parseLog({topics: mutableTopics, data: eventLog.data})?.args[0] as string + ".eth";
+  const ensName = "yashkarthik.eth"
+  const resolver = await provider.getResolver(ensName);
 
   if (!resolver || resolver.address == ethers.ZeroAddress) throw new TRPCError({
     message: "Resolver not found",
@@ -74,11 +77,7 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
     cause: "ENS name may not be registered, or resolver not set."
   });
 
-  const tokenId = ethers.getBigInt(
-    ethers.keccak256(
-      ethers.toUtf8Bytes(ensName)
-    )
-  ).toString()
+  const tokenId = ethers.keccak256(ethers.toUtf8Bytes(ensName))
 
   const expiry = new Date(
     Number(
@@ -88,28 +87,83 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
     )
   );
 
-  return {
-    ensName,
+  // Parallel fetching
+  const [
+    registrant,
+    contentHash,
+    bitcoin,
+    dogecoin,
+    email,
+    url,
+    avatar,
+    location,
+    description,
+    notice,
+    keywords,
+    discord,
+    github,
+    reddit,
+    twitter,
+    telegram,
+    linkedIn,
+    ensDelegate,
+  ] = await Promise.all([
+    resolver.getAddress(),
+    resolver.getContentHash(),
+    resolver.getAddress(0),
+    resolver.getAddress(3),
+    resolver.getText("email"),
+    resolver.getText("url"),
+    resolver.getText("avatar"),
+    resolver.getText("location"),
+    resolver.getText("description"),
+    resolver.getText("notice"),
+    resolver.getText("keywords"),
+    resolver.getText("com.discord"),
+    resolver.getText("com.github"),
+    resolver.getText("com.reddit"),
+    resolver.getText("com.twitter"),
+    resolver.getText("org.telegram"),
+    resolver.getText("com.linkedin"),
+    resolver.getText("eth.ens.delegate"),
+  ]);
+
+  let urlTextRecord;
+  if (!url || url?.length == 0) {
+    urlTextRecord = url;
+  } else {
+    if (!(url.startsWith("https://") || url.startsWith("http://"))) {
+      // if it pass ^, it's a url, but without the http part.
+      urlTextRecord = "http://" + url;
+    }
+  }
+  
+  const returnObj = {
+    ensName: ensName,
+    registrant: registrant,
     resolver: resolver.address,
-    registrant: await resolver.getAddress(),
     expirationDate: expiry,
     tokenId: tokenId,
+    contentHash,
+    bitcoin,
+    dogecoin,
+    email: email || null,
+    url: urlTextRecord || null,
+    avatar: avatar || null,
+    location: location || null,
+    description: description || null,
+    notice: notice || null,
+    keywords: keywords?.split(",") || null,
+    discord: discord || null,
+    github: github || null,
+    reddit: reddit || null,
+    twitter: twitter || null,
+    telegram: telegram || null,
+    linkedIn: linkedIn || null,
+    ensDelegate: ensDelegate || null,
+  };
+  console.log(returnObj);
+  Profile.parse(returnObj);
 
-    contentHash: await resolver.getContentHash(),
-    bitcoin: await resolver.getAddress(0),
-    dogecoin: await resolver.getAddress(3),
-    email: await resolver.getText("email"),
-    url: await resolver.getText("url"),
-    avatar: await resolver.getText("avatar"),
-    description: await resolver.getText("description"),
-    notice: await resolver.getText("notice"),
-    keywords: await resolver.getText("keywords"),
-    discord: await resolver.getText("com.discord"),
-    github: await resolver.getText("com.github"),
-    reddit: await resolver.getText("com.reddit"),
-    twitter: await resolver.getText("com.twitter"),
-    telegram: await resolver.getText("org.telegram"),
-    linkedIn: await resolver.getText("com.linkedin"),
-    ensDelegate: await resolver.getText("eth.ens.delegate"),
-  }
+  return returnObj;
 }
