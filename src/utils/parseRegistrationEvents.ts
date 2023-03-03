@@ -4,7 +4,6 @@ import { Profile } from '../types/types';
 import ETHRegistrarControllerAbi from "../abis/ETHRegistrarController.json";
 import BaseRegistrarAbi from "../abis/BaseRegistrar.json";
 import { TRPCError } from '@trpc/server';
-import { isNull } from 'util';
 
 /**
   * @param provider - a provider oboject of type ethers.AlchemyProvider
@@ -13,10 +12,10 @@ import { isNull } from 'util';
   * @returns Promise<ethers.Log[]> - a promise containing an array of ethers.Log objects.
   *
   * Returns a list of `event NameRegistered(string name, bytes32 indexed label, address indexed owner, uint cost, uint expires);`
-  * emitted by the `ETHRegistrarController` contract.
+  * emitted by the `ETHRegistrarController` contract in the provided block range.
   */
 
-export async function getNameRegisteredEvent(provider: AlchemyProvider, startBlock: number, endBlock?: number) {
+export async function getNameRegisteredEventInBlockRange(provider: AlchemyProvider, startBlock: number, endBlock?: number) {
   console.log(`\n----------------Starting to index from block ${startBlock}----------------\n`);
 
   const currentBlock = await provider.getBlockNumber();
@@ -51,10 +50,10 @@ export async function getNameRegisteredEvent(provider: AlchemyProvider, startBlo
 }
 
 /**
-  * @returns IProfile
+  * @returns Promise<IProfile>
   * Returns the data about ENS record extracted from the event log.
   */
-export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: ethers.Log) {
+export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: ethers.Log): Promise<IProfile> {
   const ETHRegistrarController = new Contract(
     "0x283af0b28c62c092c9727f1ee09c02ca627eb7f5",
     ETHRegistrarControllerAbi,
@@ -67,14 +66,15 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
   );
 
   const mutableTopics = Array.from(eventLog.topics); // parseLog needs mutable array.
-  //const ensName = ETHRegistrarController.interface.parseLog({topics: mutableTopics, data: eventLog.data})?.args[0] as string + ".eth";
-  const ensName = "yashkarthik.eth"
+  const ensName = ETHRegistrarController.interface.parseLog({topics: mutableTopics, data: eventLog.data})?.args[0] as string + ".eth";
+  //const ensName = "yashkarthik.eth" // for testing
   const resolver = await provider.getResolver(ensName);
 
+  console.log("Resolving data for: ", ensName);
   if (!resolver || resolver.address == ethers.ZeroAddress) throw new TRPCError({
-    message: "Resolver not found",
+    message: ensName,
     code: "NOT_FOUND",
-    cause: "ENS name may not be registered, or resolver not set."
+    cause: "ENS name may not be registered, or resolver not set or rate-limited by node provider."
   });
 
   const tokenId = ethers.keccak256(ethers.toUtf8Bytes(ensName))
@@ -88,6 +88,7 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
   );
 
   // Parallel fetching
+  // Potential errors must be caught by callers and ens name will be skipped.
   const [
     registrant,
     contentHash,
@@ -133,14 +134,14 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
     urlTextRecord = url;
   } else {
     if (!(url.startsWith("https://") || url.startsWith("http://"))) {
-      // if it pass ^, it's a url, but without the http part.
+      // if it passes ^, it's a url, but without the http part.
       urlTextRecord = "http://" + url;
     }
   }
   
   const returnObj = {
     ensName: ensName,
-    registrant: registrant,
+    registrant: registrant as string,
     resolver: resolver.address,
     expirationDate: expiry,
     tokenId: tokenId,

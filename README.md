@@ -7,7 +7,9 @@ filtering.
 
 **Notes**:
 
-- Maybe I should listen to events emitted by the registrar?
+- [X] Listen to events emitted by the registrar as every `.eth` name is regestired via that.
+- [ ] Listen to `TextChanged` to keep text record in sync (use the last block indexed strategy here
+    too)
 
 - Can't index the entire chain at once / cannot start the indexing from the deploy block. Too much
 time as Alchemy allows only 2K blocks per query (for unlimited logs).

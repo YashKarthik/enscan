@@ -9,6 +9,7 @@ const server = z.object({
   ALCHEMY_API_KEY: z.string(),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string(),
+  SUPABASE_SERVICE_KEY: z.string(),
 });
 
 /**
@@ -30,6 +31,7 @@ const processEnv = {
   ALCHEMY_API_KEY: process.env.ALCHEMY_API_KEY,
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+  SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
 };
 
 // Don't touch the part below
