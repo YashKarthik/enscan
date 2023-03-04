@@ -5,6 +5,24 @@ import ETHRegistrarControllerAbi from "../abis/ETHRegistrarController.json";
 import BaseRegistrarAbi from "../abis/BaseRegistrar.json";
 import { TRPCError } from '@trpc/server';
 
+export async function getNameRegisteredEvents(provider: AlchemyProvider, fromBlock: number) {
+  console.log(`\n----------------Starting to index from block ${fromBlock}----------------\n`);
+
+  const logs = await provider.getLogs({
+    address: "0x283af0b28c62c092c9727f1ee09c02ca627eb7f5", // the ETHRegistrarController contract
+    fromBlock,
+    toBlock: fromBlock + 2000,
+    topics: [ethers.id("NameRegistered(string,bytes32,address,uint256,uint256)")] // `ethers.id` does keccak256 for UTF-8 strings;
+  });
+
+  logs.sort((a, b) => (
+    a.blockNumber > b.blockNumber ? 1 : -1
+  ));
+
+  console.log(`\n----------------Indexed upto block ${fromBlock + 2000}----------------\n`);
+  return logs;
+}
+
 /**
   * @param provider - a provider oboject of type ethers.AlchemyProvider
   * @param startBlock - the blocknumber from which to start the indexing event logs.

@@ -1,8 +1,8 @@
-import { extractDataFromEvent, getNameRegisteredEventInBlockRange} from "./parseRegistrationEvents"
+import { extractDataFromEvent, getNameRegisteredEventInBlockRange, getNameRegisteredEvents} from "./parseRegistrationEvents"
 
 import { createClient } from '@supabase/supabase-js'
 import { env } from "../env.mjs";
-import { AlchemyProvider } from "ethers";
+import { AlchemyProvider, ethers } from "ethers";
 import { TRPCError } from "@trpc/server";
 
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
@@ -54,3 +54,64 @@ export async function indexRegistrationsSinceLastSync(provider: AlchemyProvider,
 
   console.log(data);
 }
+
+//async function indexRegistrationsSinceDeployment(provider: AlchemyProvider) {
+//  const REGISTRAR_DEPLOY_BLOCK = 9380471;
+//  const CURRENT_BLOCK = await provider.getBlockNumber();
+//  const QUERY_BATCH_SIZE = 2000;
+//  
+//}
+
+export async function indexRegistrationsSinceDeployment(provider: AlchemyProvider) {
+  const BATCH_SIZE = 30;
+  const logs: ethers.Log[] = [];
+  let fromBlock = 9380471;
+  const CURRENT_BLOCK = await provider.getBlockNumber();
+  const QUERY_BATCH_SIZE = 2000;
+  
+  while (true) {
+    const batchRequests = [];
+
+    // Generate batchRequests
+    for (let i = 0; i < BATCH_SIZE; i++) {
+      batchRequests.push(getNameRegisteredEvents(provider, fromBlock));
+      fromBlock += QUERY_BATCH_SIZE;
+    }
+
+    // Make batchRequests with exponential backoff
+    const batchResponses = await Promise.all(batchRequests.flatMap(async (request) => {
+      let delay = 1000; // Start with a 1-second delay between retries
+      while (true) {
+        try {
+          const response = await request;
+          return response;
+        } catch (error) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          console.log("HIT limit, slowing down.")
+          delay *= 2; // Double the delay time
+
+          //if (error!.response && error!.response.status === 429) {
+          //  // Rate limit hit, increase delay and retry
+          //  console.log(`Rate limit hit. Retrying in ${delay}ms`);
+          //  await new Promise((resolve) => setTimeout(resolve, delay));
+          //  delay *= 2; // Double the delay time
+          //} else {
+          //  // Other error, re-throw it
+          //  throw error;
+          //}
+        }
+      }
+    }));
+
+    console.log("Batch responses: ", batchResponses);
+    logs.concat(batchResponses.flat());
+
+    if (fromBlock > CURRENT_BLOCK) break;
+    // Wait before starting the next batch
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  console.log("LOGS:\n");
+  console.log(logs);
+}
+
