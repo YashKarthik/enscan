@@ -5,83 +5,25 @@ import ETHRegistrarControllerAbi from "../abis/ETHRegistrarController.json";
 import BaseRegistrarAbi from "../abis/BaseRegistrar.json";
 import { TRPCError } from '@trpc/server';
 
-export async function getNameRegisteredEvents(provider: AlchemyProvider, fromBlock: number) {
-  console.log(`\n----------------Starting to index from block ${fromBlock}----------------\n`);
-
-  const logs = await provider.getLogs({
-    address: "0x283af0b28c62c092c9727f1ee09c02ca627eb7f5", // the ETHRegistrarController contract
-    fromBlock,
-    toBlock: fromBlock + 2000,
-    topics: [ethers.id("NameRegistered(string,bytes32,address,uint256,uint256)")] // `ethers.id` does keccak256 for UTF-8 strings;
-  });
-
-  logs.sort((a, b) => (
-    a.blockNumber > b.blockNumber ? 1 : -1
-  ));
-
-  console.log(`\n----------------Indexed upto block ${fromBlock + 2000}----------------\n`);
-  return logs;
+export async function parseBatchedRegistrations(provider: AlchemyProvider, events: ethers.EventLog[]) {
+  
 }
 
 /**
-  * @param provider - a provider oboject of type ethers.AlchemyProvider
-  * @param startBlock - the blocknumber from which to start the indexing event logs.
-  * @param endBlock - the blocknumber till which to index events.
-  * @returns Promise<ethers.Log[]> - a promise containing an array of ethers.Log objects.
-  *
-  * Returns a list of `event NameRegistered(string name, bytes32 indexed label, address indexed owner, uint cost, uint expires);`
-  * emitted by the `ETHRegistrarController` contract in the provided block range.
+  * Returns data about ENS record extracted from `eventLog`.
   */
+async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: ethers.EventLog): Promise<IProfile> {
 
-export async function getNameRegisteredEventInBlockRange(provider: AlchemyProvider, startBlock: number, endBlock?: number) {
-  console.log(`\n----------------Starting to index from block ${startBlock}----------------\n`);
-
-  const currentBlock = await provider.getBlockNumber();
-  let logs: ethers.Log[] = [];
-
-  const batchSize = 2000; // batch size for each parallel query
-  const batchCount = Math.ceil(((endBlock ?? currentBlock) - startBlock + 1) / batchSize);
-
-  const batchRequests = Array.from({ length: batchCount }, async (_, i) => {
-    const fromBlock = startBlock + i * batchSize;
-    const toBlock = Math.min(fromBlock + batchSize - 1, endBlock ? endBlock:currentBlock);
-
-    //await new Promise(() => setTimeout(() => {console.log('Sending req')}, 1000))
-    console.log("Current block range:", fromBlock, "---->", toBlock);
-
-    return provider.getLogs({
-      address: "0x283af0b28c62c092c9727f1ee09c02ca627eb7f5", // the ETHRegistrarController contract
-      fromBlock,
-      toBlock,
-      topics: [ethers.id("NameRegistered(string,bytes32,address,uint256,uint256)")] // `ethers.id` does keccak256 for UTF-8 strings;
-    });
-  });
-
-  const batchResponses = await Promise.all(batchRequests);
-  logs = batchResponses.flatMap(logsInBlockRange => logsInBlockRange);
-  logs.sort((a, b) => (
-    a.blockNumber > b.blockNumber ? 1 : -1
-  ));
-
-  console.log(`\n----------------Indexed upto block ${endBlock ?? currentBlock}----------------\n`);
-  return logs;
-}
-
-/**
-  * @returns Promise<IProfile>
-  * Returns the data about ENS record extracted from the event log.
-  */
-export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: ethers.Log): Promise<IProfile> {
   const ETHRegistrarController = new Contract(
     "0x283af0b28c62c092c9727f1ee09c02ca627eb7f5",
     ETHRegistrarControllerAbi,
     provider
-  );
+  ); // for parsing events of this interface.
   const BaseRegistrar = new Contract(
     "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85",
     BaseRegistrarAbi,
     provider
-  );
+  ); // for getting the expiry of ENS name.
 
   const mutableTopics = Array.from(eventLog.topics); // parseLog needs mutable array.
   const ensName = ETHRegistrarController.interface.parseLog({topics: mutableTopics, data: eventLog.data})?.args[0] as string + ".eth";
@@ -181,8 +123,7 @@ export async function extractDataFromEvent(provider: AlchemyProvider, eventLog: 
     linkedIn: linkedIn || null,
     ensDelegate: ensDelegate || null,
   };
-  console.log(returnObj);
-  Profile.parse(returnObj);
 
+  Profile.parse(returnObj); // will throw if shape is not different; caller must catch and log.
   return returnObj;
 }
