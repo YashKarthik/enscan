@@ -63,7 +63,7 @@ export async function getBatchedRegistrations(provider: AlchemyProvider, startBl
   const CURRENT_BLOCK = await provider.getBlockNumber();
   const QUERY_BATCH_SIZE = 2000;
 
-  console.log(`--------------Start block: ${startBlock} | Current block: ${CURRENT_BLOCK}`);
+  console.log(`\n--------------Start block: ${startBlock} | Current block: ${CURRENT_BLOCK}\n`);
   
   while (true) {
     const batchRequests = [];
@@ -95,8 +95,7 @@ export async function getBatchedRegistrations(provider: AlchemyProvider, startBl
     if (fromBlock >= CURRENT_BLOCK) break;
     await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait before starting next batch.
   }
-  console.log("------------------- FINISHED FETCHING -------------------");
-  console.log(logs);
+  console.log("\n------------------- FINISHED FETCHING -------------------\n");
   return logs;
 }
 

@@ -6,25 +6,72 @@ import BaseRegistrarAbi from "../abis/BaseRegistrar.json";
 import { TRPCError } from '@trpc/server';
 
 export async function parseBatchedRegistrations(provider: AlchemyProvider, events: ethers.Log[]) {
-  const batchResponses = await Promise.all(events.map(async event => {
-    let delay = 1000; // Start with a 1-second delay between retries
-    for (let i=0; i < 3; i++) {
-      try {
-        const t = await parseNameRegistrationEvent(provider, event)
-        console.log('here');
-        console.log(t);
-        return t;
-      } catch (error) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        console.log("HIT limit while parsing, slowing down.")
-        delay *= 2; // Double the delay time
-      }
-    }
-  }));
+  const fails: string[] = [];
+  const profiles: IProfile[] = [];
+  console.log("length", events.length);
 
-  console.log('here 2', batchResponses);
-  return batchResponses;
+  for (let i=0; i < events.length; i+=3) {
+    let delay = 1000; // Start with a 1-second delay between retries
+    const batchedRequest = [];
+
+    for (let k=i; k <= i+3; k++) { // for each event in current batch.
+      if (!events[k]) break;
+      console.log("Init req:", k);
+      batchedRequest.push(parseNameRegistrationEvent(provider, events[k]!)); // already checked if event[i] exists.
+    }
+
+    const batchedResponse = (await Promise.all(batchedRequest.map(async parseReq => {
+      for (let j=0; j < 3; j++) { // try thrice before giving up.
+        try {
+          return await parseReq;
+        } catch (error) {
+          if (error instanceof TRPCError) {
+            console.log("Unregistered name: ", error.message);
+            fails.push(error.message); // error.message contains ensName, thrown below;
+            return null;
+          }
+          console.log("HIT limit while parsing, slowing down.");
+          if (delay < 10_000) delay *= 2; // Double the delay time if delay less that 10 sec
+        }
+        return null;
+      }
+    }))).filter(r => r != null && r != undefined) as NonNullable<IProfile[]>;
+
+    console.log(batchedResponse);
+    profiles.push(...batchedResponse);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  };
+
+  console.log(profiles);
+  return profiles;
 }
+
+//export async function parseBatchedRegistrations(provider: AlchemyProvider, events: ethers.Log[]) {
+//  const fails: string[] = [];
+//  const batchResponses = await Promise.allSettled(events.map(async event => {
+//    let delay = 1000; // Start with a 1-second delay between retries
+//    for (let i=0; i < 3; i++) {
+//      try {
+//        return (await parseNameRegistrationEvent(provider, event));
+//      } catch (error) {
+//        if (error instanceof TRPCError) {
+//          console.log("Unregistered name: ", error.message);
+//          fails.push(error.message); // message contains ensName, thrown below;
+//          return null;
+//        }
+//
+//        await new Promise((resolve) => setTimeout(resolve, delay));
+//        console.log("HIT limit while parsing, slowing down.");
+//        if (delay < 10_000) delay *= 2; // Double the delay time if delay less that 10 sec
+//      }
+//      return null;
+//    }
+//  }));
+//
+//  console.log(batchResponses);
+//  //const responses = batchResponses.filter(r => r.status === 'fulfilled').map(r => r.value);
+//  //return responses;
+//}
 
 /**
   * Returns data about ENS record extracted from `eventLog`.
@@ -47,7 +94,6 @@ async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: e
   //const ensName = "yashkarthik.eth" // for testing
   const resolver = await provider.getResolver(ensName);
 
-  console.log("Resolving data for: ", ensName);
   if (!resolver || resolver.address == ethers.ZeroAddress) throw new TRPCError({
     message: ensName,
     code: "NOT_FOUND",
@@ -64,6 +110,7 @@ async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: e
     )
   );
 
+  console.log("Resolving: ", ensName);
   // Parallel fetching
   // Potential errors must be caught by callers and ens name will be skipped.
   const [
@@ -141,6 +188,12 @@ async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: e
     ensDelegate: ensDelegate || null,
   };
 
-  Profile.parse(returnObj); // will throw if shape is not different; caller must catch and log.
+  if (!(Profile.safeParse(returnObj).success)) throw new TRPCError({
+    message: ensName,
+    code: "INTERNAL_SERVER_ERROR",
+    cause: "Unexpected shape of Profile object"
+  }); // will throw if shape is not different; caller must catch and log.
+
+  console.log("Resolved: ", ensName, registrant);
   return returnObj;
 }

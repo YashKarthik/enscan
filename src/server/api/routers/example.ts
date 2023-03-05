@@ -11,7 +11,7 @@ export const exampleRouter = createTRPCRouter({
   hello: publicProcedure
     .query(async () => {
 
-      const t = await getBatchedRegistrations(provider, 16751932);
+      const t = await getBatchedRegistrations(provider,  16762692);
       await parseBatchedRegistrations(provider, t);
 
       return {
