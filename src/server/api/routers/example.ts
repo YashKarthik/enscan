@@ -3,6 +3,7 @@ import { AlchemyProvider } from "ethers";
 import { env } from "~/env.mjs";
 import { z } from "zod";
 import { getBatchedRegistrations } from "~/utils/getRegistrations";
+import { parseBatchedRegistrations } from "~/utils/parseRegistrations";
 
 const provider = new AlchemyProvider("mainnet", env.ALCHEMY_API_KEY);
 
@@ -10,7 +11,8 @@ export const exampleRouter = createTRPCRouter({
   hello: publicProcedure
     .query(async () => {
 
-      getBatchedRegistrations(provider, 1000);
+      const t = await getBatchedRegistrations(provider, 16751932);
+      await parseBatchedRegistrations(provider, t);
 
       return {
         data: "yes"

@@ -5,14 +5,31 @@ import ETHRegistrarControllerAbi from "../abis/ETHRegistrarController.json";
 import BaseRegistrarAbi from "../abis/BaseRegistrar.json";
 import { TRPCError } from '@trpc/server';
 
-export async function parseBatchedRegistrations(provider: AlchemyProvider, events: ethers.EventLog[]) {
-  
+export async function parseBatchedRegistrations(provider: AlchemyProvider, events: ethers.Log[]) {
+  const batchResponses = await Promise.all(events.map(async event => {
+    let delay = 1000; // Start with a 1-second delay between retries
+    for (let i=0; i < 3; i++) {
+      try {
+        const t = await parseNameRegistrationEvent(provider, event)
+        console.log('here');
+        console.log(t);
+        return t;
+      } catch (error) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        console.log("HIT limit while parsing, slowing down.")
+        delay *= 2; // Double the delay time
+      }
+    }
+  }));
+
+  console.log('here 2', batchResponses);
+  return batchResponses;
 }
 
 /**
   * Returns data about ENS record extracted from `eventLog`.
   */
-async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: ethers.EventLog): Promise<IProfile> {
+async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: ethers.Log): Promise<IProfile> {
 
   const ETHRegistrarController = new Contract(
     "0x283af0b28c62c092c9727f1ee09c02ca627eb7f5",

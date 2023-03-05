@@ -1,9 +1,6 @@
-import { extractDataFromEvent } from "./parseRegistrationEvents"
-
 import { createClient } from '@supabase/supabase-js'
 import { env } from "../env.mjs";
 import { AlchemyProvider, ethers } from "ethers";
-import { TRPCError } from "@trpc/server";
 
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
   auth: {
@@ -61,10 +58,12 @@ const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
   */
 export async function getBatchedRegistrations(provider: AlchemyProvider, startBlock=9380471) {
   const BATCH_SIZE = 30;
-  const logs: ethers.Log[] = [];
+  let logs: ethers.Log[] = [];
   let fromBlock = startBlock;
   const CURRENT_BLOCK = await provider.getBlockNumber();
   const QUERY_BATCH_SIZE = 2000;
+
+  console.log(`--------------Start block: ${startBlock} | Current block: ${CURRENT_BLOCK}`);
   
   while (true) {
     const batchRequests = [];
@@ -72,28 +71,32 @@ export async function getBatchedRegistrations(provider: AlchemyProvider, startBl
     // Generate batchRequests
     for (let i = 0; i < BATCH_SIZE; i++) {
       batchRequests.push(getNameRegisteredEvents(provider, fromBlock));
+
+      if (fromBlock >= CURRENT_BLOCK) break; // already reached present day;
       fromBlock += QUERY_BATCH_SIZE;
+      if (fromBlock > CURRENT_BLOCK) fromBlock = CURRENT_BLOCK; // crossed present day, reset; will break in next iter.
     }
 
     // Make batchRequests with exponential backoff
-    const batchResponses = await Promise.all(batchRequests.flatMap(async (request) => {
+    const batchResponses = await Promise.all(batchRequests.map(async (request) => {
       let delay = 1000; // Start with a 1-second delay between retries
       while (true) {
         try {
-          const response = await request;
-          return response;
+          return (await request);
         } catch (error) {
           await new Promise((resolve) => setTimeout(resolve, delay));
-          console.log("HIT limit, slowing down.")
+          console.log("HIT limit while fetching, slowing down.")
           delay *= 2; // Double the delay time
         }
       }
     }));
 
-    logs.concat(batchResponses.flat());
-    if (fromBlock > CURRENT_BLOCK) break;
+    logs = logs.concat(...batchResponses);
+    if (fromBlock >= CURRENT_BLOCK) break;
     await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait before starting next batch.
   }
+  console.log("------------------- FINISHED FETCHING -------------------");
+  console.log(logs);
   return logs;
 }
 
