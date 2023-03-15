@@ -17,8 +17,26 @@ const supabaseAuthClient = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_K
   }
 })
 
+const ZodPostgrestError = z.object({
+  message: z.string(),
+  details: z.string(),
+  hint: z.string(),
+  code: z.string()
+});
+
 export const ethRegistrarControllerRouter = createTRPCRouter({
   indexFromScratch: publicProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/index-from-scratch"
+      }
+    })
+    .input(z.undefined() || z.null())
+    .output(z.object({
+      success: z.boolean(),
+      error: ZodPostgrestError.nullable(),
+    }))
     .query(async () => {
 
       const { profiles, fails } = await parseBatchedRegistrations(
@@ -59,8 +77,18 @@ export const ethRegistrarControllerRouter = createTRPCRouter({
     }),
 
   indexFromBlock: publicProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/index-from-blocknum"
+      }
+    })
     .input(z.object({
       startBlock: z.number()
+    }))
+    .output(z.object({
+      success: z.boolean(),
+      error: ZodPostgrestError.nullable(),
     }))
     .query(async ({ input }) => {
 
@@ -104,6 +132,17 @@ export const ethRegistrarControllerRouter = createTRPCRouter({
     }),
 
   indexFromLastSync: publicProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/index-from-last-sync"
+      }
+    })
+    .input(z.undefined() || z.null())
+    .output(z.object({
+      success: z.boolean(),
+      error: ZodPostgrestError.nullable(),
+    }))
     .query(async () => {
 
       const { data, error: fetchError } = await supabaseAnonClient
