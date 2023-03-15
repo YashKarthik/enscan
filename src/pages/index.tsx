@@ -37,7 +37,7 @@ const Home = () => (
           <br/>
           <br/>
 
-          Each row in the db represents one profile, each profile adheres to the following <a href="https://zod.dev" target="_blank" className='underline decoration-wavy'>Zod</a> type.
+          Each row in the db represents one profile, each profile adheres to the following <a href="https://zod.dev" target="_blank" rel='noreferrer' className='underline decoration-wavy'>Zod</a> type.
         </div>
 
         <Image
@@ -48,7 +48,7 @@ const Home = () => (
         />
 
         Use Supabase client (or any other client) to query the db. The following secrets have been provided in good faith,
-        please setup your own indexer once your project takes off. <a href="https://github.com/yashkarthik/enscan" target="_blank" className='underline decoration-wavy'>(how to)</a>
+        please setup your own indexer once your project takes off. <a href="https://github.com/yashkarthik/enscan" target="_blank" rel='noreferrer' className='underline decoration-wavy'>(how to)</a>
         <br/> <br/>
         Supabase DB url: https://qtquydxpjvjrdtzbksom.supabase.co <br/>
 
@@ -63,6 +63,7 @@ const Home = () => (
           ["Farcaster", "https://warpcast.com/yashkarthik/"],
         ].map(link => <a key={link[1]!.length / link[0]!.length}
             target="_blank"
+            rel='noreferrer' 
             href={link[1]}
             className="
               mx-3

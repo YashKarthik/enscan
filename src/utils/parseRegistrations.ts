@@ -44,7 +44,7 @@ export async function parseBatchedRegistrations(provider: AlchemyProvider, event
 
     profiles.push(...batchedResponse);
     await new Promise((resolve) => setTimeout(resolve, delay));
-  };
+  }
 
   const uniqueProfiles = removeDuplicateProfiles(profiles);
 
@@ -85,7 +85,7 @@ async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: e
 
   const expiry = new Date(
     Number(
-      // @ts-expect-error
+      // @ts-expect-error Typescript does not understand Contract ABI.
       (await BaseRegistrar.nameExpires(tokenId))
       * 1000n
     )
