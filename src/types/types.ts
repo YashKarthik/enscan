@@ -10,9 +10,9 @@ import { z } from "zod"
 export const Profile = z.object({
   ens: z.string().endsWith(".eth"),
   resolver: z.string().length(42),
-  registrant: z.string().length(42),
+  registrant: z.string().length(42), // owner of the erc721 nft that represents the ens name.
   expiration_date: z.date(),
-  token_id: z.string().length(66),
+  token_id: z.string().length(66), // each ens name is an ERC-721 NFT, every erc721 nft has a tokenId
 
   avatar: z.string().url().nullable(),
   description: z.string().nullable(),
@@ -35,7 +35,7 @@ export const Profile = z.object({
 
   ens_delegate: z.string().nullable(),
 
-  emitted_block_number: z.number(), // block number at which this profile's event was emitted.
+  emitted_block_number: z.number(), // block number at which this profile's registration event was emitted.
 });
 
 export type IProfile = z.infer<typeof Profile>;
