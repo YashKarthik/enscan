@@ -41,7 +41,7 @@ export const ethRegistrarControllerRouter = createTRPCRouter({
 
       const { data: __, error: insertMetadataError } = await supabaseAuthClient
         .from('indexing_metadata')
-        .insert(fails);
+        .insert({ last_blocknumber: profiles.at(-1)?.emitted_block_number, fails: fails});
 
       if (insertMetadataError) {
         console.log("\n--------------- ERROR while inserting fails to Supabase in procedure: indexFromScratch\n");
@@ -86,7 +86,7 @@ export const ethRegistrarControllerRouter = createTRPCRouter({
 
       const { data: __, error: insertMetadataError } = await supabaseAuthClient
         .from('indexing_metadata')
-        .insert(fails);
+        .insert({ last_blocknumber: profiles.at(-1)?.emitted_block_number, fails: fails});
 
       if (insertMetadataError) {
         console.log("\n--------------- ERROR while inserting fails to Supabase in procedure: indexFromBlock\n");
@@ -141,12 +141,12 @@ export const ethRegistrarControllerRouter = createTRPCRouter({
         }
       }
 
-      const { data: ___, error: insertMetadataError } = await supabaseAuthClient
+      const { data: _, error: insertMetadataError } = await supabaseAuthClient
         .from('indexing_metadata')
-        .insert(fails);
+        .insert({ last_blocknumber: profiles.at(-1)?.emitted_block_number, fails: fails});
 
       if (insertMetadataError) {
-        console.log("\n--------------- ERROR while inserting fails to Supabase in procedure: indexFromBlock\n");
+        console.log("\n--------------- ERROR while inserting fails to Supabase in procedure: indexFromLastSync\n");
         console.log(insertMetadataError);
         return {
           success: false,

@@ -33,7 +33,9 @@ export const Profile = z.object({
   telegram: z.string().nullable(),
   linkedin: z.string().nullable(),
 
-  ens_delegate: z.string().nullable()
+  ens_delegate: z.string().nullable(),
+
+  emitted_block_number: z.number(), // block number at which this profile's event was emitted.
 });
 
 export type IProfile = z.infer<typeof Profile>;

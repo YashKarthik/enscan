@@ -46,8 +46,10 @@ export async function parseBatchedRegistrations(provider: AlchemyProvider, event
     await new Promise((resolve) => setTimeout(resolve, delay));
   };
 
+  const uniqueProfiles = removeDuplicateProfiles(profiles);
+
   return {
-    profiles,
+    profiles: uniqueProfiles,
     fails
   };
 }
@@ -165,6 +167,7 @@ async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: e
     telegram: telegram || null,
     linkedin: linkedIn || null,
     ens_delegate: ensDelegate || null,
+    emitted_block_number: eventLog.blockNumber
   };
 
   if (!(Profile.safeParse(returnObj).success)) throw new TRPCError({
@@ -175,4 +178,25 @@ async function parseNameRegistrationEvent(provider: AlchemyProvider, eventLog: e
 
   console.log("Resolved: ", ensName, registrant);
   return returnObj;
+}
+
+function removeDuplicateProfiles(profiles: IProfile[]): IProfile[] {
+  const profileMap: Map<string, IProfile> = new Map();
+  const uniqueProfiles: IProfile[] = [];
+
+  profiles.forEach((profile) => {
+    const ens = profile.ens;
+
+    if (!profileMap.has(ens)) {
+      profileMap.set(ens, profile);
+    } else if (profile.emitted_block_number > profileMap.get(ens)!.emitted_block_number) {
+      profileMap.set(ens, profile);
+    }
+  });
+
+  profileMap.forEach((profile) => {
+    uniqueProfiles.push(profile);
+  });
+
+  return uniqueProfiles;
 }
